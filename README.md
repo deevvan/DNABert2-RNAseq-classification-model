@@ -147,35 +147,6 @@ This project involves training a sequence classification model to classify SARS-
 - The plots are saved as an image file.
 
 
-
-### Usage
-
-To use this script, follow these steps:
-
-1. **Clone the repository:**
-    ```sh
-    git clone <repository_url>
-    cd <repository_directory>
-    ```
-
-2. **Install the required libraries:**
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-3. **Prepare your data:**
-    - Place your CSV file with SARS-CoV-2 genome sequences in the specified directory.
-    - Update the `data_path` variable in the script to point to your CSV file.
-
-4. **Run the script:**
-    ```sh
-    python DNAbert2_finetune_script_sarscov2.py
-    ```
-
-5. **View the results:**
-    - The trained model and tokenizer will be saved in the specified directory.
-    - Evaluation results and plots will be generated and saved.
-
 #### Requirements
 
 - pandas
@@ -190,7 +161,7 @@ To use this script, follow these steps:
 
 This repository contains a Python script for sequence classification of RNA-seq data using DNABERT. The script processes RNA-seq FASTQ and FASTA files, predicts virus and variant labels, and logs results.
 
-Script: application_dnabert2_variant_separate_model.py
+Script: mrna_predictor.py
 ### Overview
 
 The project involves extracting sequences from FASTQ files, preprocessing them, and predicting their labels using pre-trained DNABERT models. It also calculates and logs statistics for the predicted labels, and visualizes the distribution of virus labels.
@@ -216,33 +187,6 @@ The project involves extracting sequences from FASTQ files, preprocessing them, 
 
 - **mrna_predictor:** Main function to process the FASTQ file, predict labels, calculate statistics, and visualize results.
 
-### Usage
-
-To use this script, follow these steps:
-
-1. **Clone the repository:**
-    ```sh
-    git clone <repository_url>
-    cd <repository_directory>
-    ```
-
-2. **Install the required libraries:**
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-3. **Prepare your data:**
-    - Place your FASTQ file in the specified directory.
-    - Update the `fastq_path`, `model_dir`, and `csv_dir` variables in the script to point to your files.
-
-4. **Run the script:**
-    ```sh
-    python application_dnabert2_variant_separate_model.py
-    ```
-
-5. **View the results:**
-    - The output CSV file with predictions will be saved in the specified directory.
-    - Evaluation results and plots will be generated and saved.
 
 ### Requirements
 
