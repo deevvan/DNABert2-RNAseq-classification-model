@@ -1,27 +1,29 @@
-# python mrna_predictor.py 
-#   --fastq_path /path/to/your/input.fastq 
-#   --model_dir /path/to/your/model/directory 
-#   --csv_dir /path/to/your/csv/directory 
-#   --threshold 0.9 
-#   --batch_size 64
+# python script_name.py 
+#  --fastq_path <path_to_fastq> 
+#  --model_dir <model_directory> 
+#  --csv_dir <csv_directory> 
+#  --rbd_fasta_file <path_to_rbd_fasta> 
+#  --threshold 0.95 
+#  --batch_size 1024
 
 
 import os
 import torch
 from transformers import BertForSequenceClassification, AutoTokenizer
 import pandas as pd
+import argparse
 import csv
 from collections import defaultdict
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-import argparse
+from Bio.Align import PairwiseAligner
+from Bio import SeqIO
 
 #########################################
 ### Define helper functions ###
 #########################################
 
-# Extract sequences from a FASTQ file
 def extract_sequences_from_fastq(fastq_file):
     with open(fastq_file, 'r') as file:
         while True:
@@ -33,7 +35,6 @@ def extract_sequences_from_fastq(fastq_file):
             file.readline().strip()
             yield sequence
 
-# Extract sequences from a FASTA file
 def extract_sequences_from_fasta(fasta_file):
     with open(fasta_file, 'r') as file:
         sequence = ""
@@ -48,11 +49,9 @@ def extract_sequences_from_fasta(fasta_file):
         if sequence:
             yield sequence
 
-# Preprocess a sequence to a specified max length
 def preprocess_sequence(sequence, max_length):
     return sequence[:max_length]
 
-# Predict labels for a batch of sequences
 def predict_sequences(model, tokenizer, sequences, label_mapping, max_length, threshold, device):
     model.eval()
     inputs = tokenizer(sequences, return_tensors='pt', padding=True, truncation=True, max_length=max_length)
@@ -72,7 +71,7 @@ def predict_sequences(model, tokenizer, sequences, label_mapping, max_length, th
         predictions.append((sequences[i], label, confidence_scores[i].item()))
     return predictions
 
-# Calculate statistics for the predicted labels
+
 def calculate_label_statistics(predictions, label_type):
     label_counts = defaultdict(int)
     label_confidence_sums = defaultdict(float)
@@ -103,37 +102,84 @@ def calculate_label_statistics(predictions, label_type):
     
     return label_statistics
 
-# Initialize the output CSV file with headers
 def initialize_output_csv(output_csv_file):
     with open(output_csv_file, 'w') as file:
         writer = csv.writer(file)
         writer.writerow(['Sequence', 'Virus_Label', 'Virus_Confidence', 'Variant_COV_Label', 'Variant_COV_Confidence', 'Variant_IAV_Label', 'Variant_IAV_Confidence'])
 
-# Append predictions to the output CSV file
 def append_prediction_to_csv(output_csv_file, predictions):
     with open(output_csv_file, 'a') as file:
         writer = csv.writer(file)
         writer.writerows(predictions)
 
+def load_rbd_reference(fasta_file):
+    with open(fasta_file, "r") as file:
+        for record in SeqIO.parse(file, "fasta"):
+            return str(record.seq)
+
+def sequence_contains_rbd(sequence, rbd_reference, match_score=2, mismatch_penalty=-5, gap_open=-2, gap_extend=-1, threshold_percentage=0.8):
+    """
+    Use PairwiseAligner to check if the sequence aligns with the RBD reference sequence.
+    
+    Parameters:
+    - sequence (str): The nucleotide sequence to check.
+    - rbd_reference (str): The RBD reference sequence.
+    - match_score (int): The score for a match in alignment.
+    - mismatch_penalty (int): The penalty for a mismatch in alignment.
+    - gap_open (float): The penalty for opening a gap in alignment.
+    - gap_extend (float): The penalty for extending a gap in alignment.
+    - threshold_percentage (float): The percentage of the maximum possible score to use as the threshold.
+    
+    Returns:
+    - boolean: True if the sequence aligns with the RBD reference sequence with a score above the calculated threshold.
+    """
+    # Initialize the aligner
+    aligner = PairwiseAligner()
+    aligner.match_score = match_score
+    aligner.mismatch_score = mismatch_penalty
+    aligner.open_gap_score = gap_open
+    aligner.extend_gap_score = gap_extend
+    aligner.mode = 'local'  # Smith-Waterman local alignment
+    
+    # Perform the alignment
+    alignments = aligner.align(sequence, rbd_reference)
+    
+    if alignments:
+        # Calculate the maximum possible alignment score for the sequence length
+        max_possible_score = min(len(sequence), len(rbd_reference)) * match_score
+        
+        # Calculate the dynamic threshold based on the sequence length and the specified percentage
+        alignment_threshold = max_possible_score * threshold_percentage
+        
+        # Check if the best alignment score is above the calculated threshold
+        best_alignment = alignments[0]
+        alignment_score = best_alignment.score  # The score of the best alignment
+        if alignment_score >= alignment_threshold:
+            return True
+    
+    return False
+
+
 #########################################
 ### Main function ###
 #########################################
 
-def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
-    # Determine base filename and output CSV path
+def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size, rbd_fasta_file):
     base_filename = os.path.basename(fastq_path).rsplit('.', 1)[0]
     output_csv_file = os.path.join(model_dir, f"{base_filename}_prediction.csv")
     
-    # Define paths to models and label CSV files
-    virus_model_path = os.path.join(model_dir, "1_DNABert2_250bp_200overlap_virus_918epi/model")
-    virus_labels_csv_path = os.path.join(csv_dir, "WGS_by_virus_finetune_250bp_200overlap_918epi.csv")
+    virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_250bp_200overlap_900epi_complementary/model")
+    virus_labels_csv_path = os.path.join(csv_dir, "WGS_by_virus_finetune_250bp_200overlap_900epi_complementary.csv")
     
-    cov2_model_path = os.path.join(model_dir, "3_DNABert2_RBD_500k_VOC_labeled_250bp_1bp_overlap_5k_epi/model")
-    cov2_labels_csv_path = os.path.join(csv_dir, "RBD_valid_nucleotides_500k_VOC_labeled_5000_epi_250bp_1bp_overlap.csv")
+    iav_model_path = os.path.join(model_dir, "2_DNABert2_HA_NA_IAV_250bp_50overlap_complementary_3k_epi/model") 
+    iav_labels_csv_path = os.path.join(csv_dir, "HA_NA_IAV_strains_250bp_50overlap_complementary_3k_epi.csv")
 
-    iav_model_path = os.path.join(model_dir, "2_DNABert2_IAVstrains_finetune_250bp_50overlap_5k_epi/model")
-    iav_labels_csv_path = os.path.join(csv_dir, "WGS_by_VOC_IAV_finetune_5k_epi_250bp_fragments.csv")
-
+    cov2_model_path = os.path.join(model_dir, "3_DNABer2_RBD_3mil_wo_nonvoc_28k_epi_250bp_50overlap_complementary/model") 
+    cov2_labels_csv_path = os.path.join(csv_dir, "RBD_nucleotides_3mil_wo_nonvoc_28k_epi_250bp_50overlap_complementary.csv")
+    
+    # Load RBD reference sequence from the provided FASTA file
+    rbd_reference = load_rbd_reference(rbd_fasta_file)
+    
     # Determine file type and extract sequences accordingly
     if fastq_path.endswith(".fastq") or fastq_path.endswith(".fq"):
         sequence_generator = extract_sequences_from_fastq(fastq_path)
@@ -142,29 +188,23 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
     else:
         raise ValueError("Input file must be in FASTQ or FASTA format.")
 
-    # Load virus model and tokenizer
     virus_model = BertForSequenceClassification.from_pretrained(virus_model_path)
     virus_tokenizer = AutoTokenizer.from_pretrained(virus_model_path)
 
-    # Load virus label CSV and create label mapping
     virus_df = pd.read_csv(virus_labels_csv_path)
     virus_label_mapping = {i: label for i, label in enumerate(virus_df['label_name'].unique())}
 
-    # Set device to GPU if available
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     virus_model.to(device)
 
-    # Initialize the output CSV file
     initialize_output_csv(output_csv_file)
 
-    # Load CoV-2 and IAV models and tokenizers
     cov2_model = BertForSequenceClassification.from_pretrained(cov2_model_path)
     cov2_tokenizer = AutoTokenizer.from_pretrained(cov2_model_path)
 
     iav_model = BertForSequenceClassification.from_pretrained(iav_model_path)
     iav_tokenizer = AutoTokenizer.from_pretrained(iav_model_path)
 
-    # Load CoV-2 and IAV label CSVs and create label mappings
     cov2_df = pd.read_csv(cov2_labels_csv_path)
     cov2_label_mapping = {i: label for i, label in enumerate(cov2_df['label_name'].unique())}
 
@@ -174,11 +214,9 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
     cov2_model.to(device)
     iav_model.to(device)
 
-    # Count total sequences for progress bar
     total_sequences = sum(1 for _ in sequence_generator)
     sequence_generator = extract_sequences_from_fastq(fastq_path) if fastq_path.endswith(".fastq") or fastq_path.endswith(".fq") else extract_sequences_from_fasta(fastq_path)
 
-    # Predict and process sequences in batches
     with tqdm(total=total_sequences, desc="Predicting variants") as pbar:
         final_predictions = []
         batch_sequences = []
@@ -193,10 +231,10 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
                 for seq, virus_label, virus_conf in virus_predictions:
                     variant_cov_label = 'Unknown'
                     variant_cov_conf = 0.0
-                    variant_iav_label = 'Unknown'
+                    variant_iav_label = 'Unknown'  # Low Pathogenic Influenza VS High Pathogenic Influenza (HPAI)
                     variant_iav_conf = 0.0
 
-                    if virus_label == 'sars_cov_2':
+                    if virus_label == 'sars_cov_2' and sequence_contains_rbd(seq, rbd_reference):
                         variant_predictions = predict_sequences(cov2_model, cov2_tokenizer, [seq], cov2_label_mapping, 250, threshold, device)
                         _, variant_cov_label, variant_cov_conf = variant_predictions[0]
                     elif virus_label == 'influenza_a':
@@ -210,7 +248,6 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
                 batch_sequences = []
                 pbar.update(batch_size)
 
-        # Process any remaining sequences
         if batch_sequences:
             virus_predictions = predict_sequences(virus_model, virus_tokenizer, batch_sequences, virus_label_mapping, 250, threshold, device)
             batch_output = []
@@ -218,10 +255,10 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
             for seq, virus_label, virus_conf in virus_predictions:
                 variant_cov_label = 'Unknown'
                 variant_cov_conf = 0.0
-                variant_iav_label = 'Unknown'
+                variant_iav_label = 'Unknown'  # Low Pathogenic Influenza VS High Pathogenic Influenza (HPAI)
                 variant_iav_conf = 0.0
 
-                if virus_label == 'sars_cov_2':
+                if virus_label == 'sars_cov_2' and sequence_contains_rbd(seq, rbd_reference):
                     variant_predictions = predict_sequences(cov2_model, cov2_tokenizer, [seq], cov2_label_mapping, 250, threshold, device)
                     _, variant_cov_label, variant_cov_conf = variant_predictions[0]
                 elif virus_label == 'influenza_a':
@@ -234,16 +271,29 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
             append_prediction_to_csv(output_csv_file, batch_output)
             pbar.update(len(batch_sequences))
 
-    # Calculate and print statistics for virus labels
     virus_label_statistics = calculate_label_statistics(final_predictions, 'virus')
-    sorted_virus_label_statistics = sorted(virus_label_statistics.items(), key=lambda item: item[1]['Z_Score'], reverse=True)
+    sorted_virus_label_statistics = sorted(virus_label_statistics.items(), key=lambda item: item[1]['Count'], reverse=True)
 
-    top_virus_labels = [label for label, stats in sorted_virus_label_statistics[:2]]
+    total_classifications = sum(item[1]['Count'] for item in sorted_virus_label_statistics)
     
-    for label, stats in sorted_virus_label_statistics[:2]:
+    # Calculate the percentages of the top two virus labels
+    if len(sorted_virus_label_statistics) > 1:
+        top_two_percentages = [
+            sorted_virus_label_statistics[0][1]['Count'] / total_classifications * 100,
+            sorted_virus_label_statistics[1][1]['Count'] / total_classifications * 100
+        ]
+    else:
+        top_two_percentages = [sorted_virus_label_statistics[0][1]['Count'] / total_classifications * 100]
+
+    # Display the top two virus labels if both have more than 15% of classifications
+    if len(top_two_percentages) > 1 and all(pct > 15 for pct in top_two_percentages):
+        for label, stats in sorted_virus_label_statistics[:2]:
+            print(f"Virus Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
+    else:
+        # Display only the top label
+        label, stats = sorted_virus_label_statistics[0]
         print(f"Virus Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
 
-    # Plot distribution of viral labels
     label_counts = defaultdict(int)
     for _, virus_label, _, _, _, _, _ in final_predictions:
         label_counts[virus_label] += 1
@@ -252,39 +302,52 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size):
     sizes = list(label_counts.values())
     
     plt.figure(figsize=(10, 7))
-    plt.pie(sizes, labels=labels, autopct='%1.1%%', startangle=140)
+    plt.pie(sizes, labels=labels, autopct='%1.1f%%', startangle=140)
     plt.title('Distribution of Viral Labels')
     plt.axis('equal')
     plt.show()
 
-    # Calculate and print statistics for CoV-2 variants
-    cov2_predictions = [(seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf) for seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf in final_predictions if v_label == 'sars_cov_2']
-    cov2_label_statistics = calculate_label_statistics(cov2_predictions, 'variant')
-    sorted_cov2_label_statistics = sorted(cov2_label_statistics.items(), key=lambda item: item[1]['Z_Score'], reverse=True)
+    # Calculate percentages
+    sars_cov_2_percentage = label_counts.get('sars_cov_2', 0) / total_classifications * 100
+    iav_percentage = label_counts.get('influenza_a', 0) / total_classifications * 100
 
-    print("\nTop Variant Labels for sars_cov_2:")
-    for label, stats in sorted_cov2_label_statistics[:1]:
-        print(f"Variant Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
+    # Display SARS-CoV-2 VOC stats if classified as > 15% or if 100% classified as sars_cov_2
+    if sars_cov_2_percentage > 15 or sars_cov_2_percentage == 100:
+        cov2_predictions = [(seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf) for seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf in final_predictions if v_label == 'sars_cov_2']
+        cov2_label_statistics = calculate_label_statistics(cov2_predictions, 'variant')
+        sorted_cov2_label_statistics = sorted(cov2_label_statistics.items(), key=lambda item: item[1]['Z_Score'], reverse=True)
 
-    # Calculate and print statistics for IAV variants
-    iav_predictions = [(seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf) for seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf in final_predictions if v_label == 'influenza_a']
-    iav_label_statistics = calculate_label_statistics(iav_predictions, 'variant')
-    sorted_iav_label_statistics = sorted(iav_label_statistics.items(), key=lambda item: item[1]['Z_Score'], reverse=True)
+        print("\nTop Variant Labels for sars_cov_2:")
+        for label, stats in sorted_cov2_label_statistics[:1]:
+            print(f"Variant Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
 
-    print("\nTop Variant Labels for influenza_a:")
-    for label, stats in sorted_iav_label_statistics[:1]:
-        print(f"Variant Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
+    # Display IAV strain stats if classified as > 15% or if 100% classified as influenza_a
+    if iav_percentage > 15 or iav_percentage == 100:
+        iav_predictions = [(seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf) for seq, v_label, v_conf, cov_label, cov_conf, iav_label, iav_conf in final_predictions if v_label == 'influenza_a']
+        iav_label_statistics = calculate_label_statistics(iav_predictions, 'variant')
+        sorted_iav_label_statistics = sorted(iav_label_statistics.items(), key=lambda item: item[1]['Z_Score'], reverse=True)
+
+        print("\nTop Variant Labels for influenza_a:")
+        for label, stats in sorted_iav_label_statistics[:1]:
+            print(f"Variant Label: {label}, Count: {stats['Count']}, Average Confidence: {stats['Avg_Confidence']:.4f}, Z-Score: {stats['Z_Score']:.4f}")
 
 if __name__ == "__main__":
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Predict labels for RNA sequences from a FASTQ or FASTA file using pre-trained DNABERT models and calculate label statistics.")
-    parser.add_argument("--fastq_path", type=str, required=True, help="Path to input FASTQ or FASTA file (e.g. path/to/fasta/sample.fasta)")
-    parser.add_argument("--model_dir", type=str, required=True, help="Path to the directory containing models (e.g. path/to/DNABert2/model/directory)")
-    parser.add_argument("--csv_dir", type=str, required=True, help="Path to the directory containing CSV files used to train models")
-    parser.add_argument("--threshold", type=float, required=True, help="Confidence threshold for predictions.")
-    parser.add_argument("--batch_size", type=int, required=True, help="Batch size for processing sequences.")
+    parser = argparse.ArgumentParser(description="mRNA Predictor for Virus and Variant Classification")
     
+    parser.add_argument("--fastq_path", required=True, help="Path to the input FASTQ/FASTA file.")
+    parser.add_argument("--model_dir", required=True, help="Directory containing the models.")
+    parser.add_argument("--csv_dir", required=True, help="Directory containing the label CSV files.")
+    parser.add_argument("--threshold", type=float, default=0.95, help="Threshold for prediction confidence.")
+    parser.add_argument("--batch_size", type=int, default=1024, help="Batch size for predictions.")
+    parser.add_argument("--rbd_fasta_file", required=True, help="Path to the RBD reference sequence FASTA file.")
+
     args = parser.parse_args()
     
-    # Call the main function with parsed arguments
-    mrna_predictor(args.fastq_path, args.model_dir, args.csv_dir, args.threshold, args.batch_size)
+    mrna_predictor(
+        fastq_path=args.fastq_path, 
+        model_dir=args.model_dir, 
+        csv_dir=args.csv_dir, 
+        threshold=args.threshold, 
+        batch_size=args.batch_size, 
+        rbd_fasta_file=args.rbd_fasta_file
+    )
