@@ -21,18 +21,39 @@ from Bio import SeqIO
 import gzip
 import re
 
+
 #########################################
 ### Define helper functions ###
 #########################################
 
 # Function to check if a sequence is valid (only contains A, T, G, C and is between 50 and 250 bps)
 def is_valid_sequence(sequence):
+    """
+    Checks if a sequence contains only valid nucleotides and is within a specified length range.
+
+    Parameters:
+    - sequence (str): The DNA sequence to check.
+
+    Returns:
+    - bool: True if the sequence is valid, False otherwise.
+    """
     sequence = sequence.upper()  # Convert sequence to uppercase
     # Check if the sequence length is between 50 and 250 and contains only A, T, G, C
     return 50 <= len(sequence) <= 250 and re.fullmatch(r'[ATGC]+', sequence) is not None
 
+
+
 # Function to extract sequences from FASTQ files
 def extract_sequences_from_fastq(fastq_file):
+    """
+    Extracts sequences from a FASTQ file, handling both uncompressed and gzipped files.
+    
+    Parameters:
+    - fastq_file (str): Path to the FASTQ file.
+
+    Yields:
+    - sequence (str): DNA sequence from the FASTQ file.
+    """
     # Handle gzipped files
     open_func = gzip.open if fastq_file.endswith(".gz") else open
     with open_func(fastq_file, 'rt') as file:
@@ -46,8 +67,19 @@ def extract_sequences_from_fastq(fastq_file):
             if is_valid_sequence(sequence):  # Yield the sequence if it's valid
                 yield sequence
 
+                
+                
 # Function to extract sequences from FASTA files
 def extract_sequences_from_fasta(fasta_file):
+    """
+    Extracts sequences from a FASTA file, handling both uncompressed and gzipped files.
+    
+    Parameters:
+    - fasta_file (str): Path to the FASTA file.
+
+    Yields:
+    - sequence (str): DNA sequence from the FASTA file.
+    """
     # Handle gzipped files
     open_func = gzip.open if fasta_file.endswith(".gz") else open
     with open_func(fasta_file, 'rt') as file:
@@ -63,12 +95,41 @@ def extract_sequences_from_fasta(fasta_file):
         if sequence and is_valid_sequence(sequence):
             yield sequence
 
+            
+            
 # Function to preprocess a sequence by truncating it to a maximum length
 def preprocess_sequence(sequence, max_length):
+    """
+    Truncates a sequence to a specified maximum length.
+    
+    Parameters:
+    - sequence (str): The DNA sequence to preprocess.
+    - max_length (int): The maximum allowed length of the sequence.
+
+    Returns:
+    - str: Truncated DNA sequence.
+    """
     return sequence[:max_length]
+
+
 
 # Function to make predictions on sequences using the specified model and tokenizer
 def predict_sequences(model, tokenizer, sequences, label_mapping, max_length, threshold, device):
+    """
+    Predicts labels for a batch of sequences using a pretrained model.
+    
+    Parameters:
+    - model (torch.nn.Module): Pretrained sequence classification model.
+    - tokenizer (transformers.AutoTokenizer): Tokenizer corresponding to the model.
+    - sequences (list of str): List of DNA sequences to classify.
+    - label_mapping (dict): Mapping from model output indices to label names.
+    - max_length (int): Maximum sequence length for tokenization.
+    - threshold (float): Confidence threshold for classification.
+    - device (torch.device): Device to perform computations on.
+
+    Returns:
+    - list of tuple: List of predictions with sequence, label, and confidence score.
+    """
     model.eval()  # Set the model to evaluation mode
     inputs = tokenizer(sequences, return_tensors='pt', padding=True, truncation=True, max_length=max_length)
     inputs = {key: val.to(device) for key, val in inputs.items()}  # Move inputs to the appropriate device
@@ -87,8 +148,20 @@ def predict_sequences(model, tokenizer, sequences, label_mapping, max_length, th
         predictions.append((sequences[i], label, confidence_scores[i].item()))
     return predictions
 
+
+
 # Function to calculate label statistics including Z-scores
 def calculate_label_statistics(predictions, label_type):
+    """
+    Calculates statistics for labels in the predictions, such as count, average confidence, and Z-score.
+    
+    Parameters:
+    - predictions (list of tuple): List of predictions with sequence, label, and confidence score.
+    - label_type (str): Type of label ('virus' or 'variant') to calculate statistics for.
+
+    Returns:
+    - dict: Statistics for each label, including count, confidence sum, average confidence, and Z-score.
+    """
     label_counts = defaultdict(int)
     label_confidence_sums = defaultdict(float)
 
@@ -118,20 +191,48 @@ def calculate_label_statistics(predictions, label_type):
     
     return label_statistics
 
+
+
 # Function to initialize the output CSV file with headers
 def initialize_output_csv(output_csv_file):
+    """
+    Initializes a CSV file for writing predictions with appropriate headers.
+    
+    Parameters:
+    - output_csv_file (str): Path to the output CSV file.
+    """
     with open(output_csv_file, 'w') as file:
         writer = csv.writer(file)
         writer.writerow(['Sequence', 'Virus_Label', 'Virus_Confidence', 'Variant_COV_Label', 'Variant_COV_Confidence', 'Variant_IAV_Label', 'Variant_IAV_Confidence'])
 
+        
+        
 # Function to append predictions to the output CSV file
 def append_prediction_to_csv(output_csv_file, predictions):
+    """
+    Appends prediction results to the output CSV file.
+    
+    Parameters:
+    - output_csv_file (str): Path to the output CSV file.
+    - predictions (list of tuple): List of predictions to append.
+    """
     with open(output_csv_file, 'a') as file:
         writer = csv.writer(file)
         writer.writerows(predictions)
 
+        
+        
 # Function to load the RBD reference sequence from a FASTA file
 def load_rbd_reference(fasta_file):
+    """
+    Loads the RBD reference sequence from a FASTA file.
+    
+    Parameters:
+    - fasta_file (str): Path to the RBD reference FASTA file.
+
+    Returns:
+    - str: RBD reference sequence.
+    """
     with open(fasta_file, "r") as file:
         for record in SeqIO.parse(file, "fasta"):
             return str(record.seq)
@@ -185,6 +286,18 @@ def sequence_contains_rbd(sequence, rbd_reference, match_score=2, mismatch_penal
 
 # Function to predict mRNA sequences and classify virus and variant labels
 def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size, rbd_fasta_file):
+    """
+    Main function to classify mRNA sequences and predict viral strains using pre-trained models.
+
+    Parameters:
+    - fastq_path (str): Path to the input FASTQ/FASTA file.
+    - model_dir (str): Directory containing pre-trained model files.
+    - csv_dir (str): Directory containing label CSV files for models.
+    - threshold (float): Probability confidence threshold for predictions.
+    - batch_size (int): Number of sequences to process in each batch.
+    - rbd_fasta_file (str): Path to the RBD reference FASTA file.
+    - ha_na_fasta_file (str): Path to the HA/NA reference FASTA file.
+    """
     
     base_filename = os.path.basename(fastq_path).rsplit('.', 1)[0]
     
@@ -251,25 +364,28 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size, rbd_fa
             batch_sequences.append(preprocessed_sequence)
 
             if len(batch_sequences) == batch_size:
-                # Predict virus labels for the batch
+                # Predict virus labels all sequences falling under specified batch size
                 virus_predictions = predict_sequences(virus_model, virus_tokenizer, batch_sequences, virus_label_mapping, 250, threshold, device)
                 batch_output = []
 
                 for seq, virus_label, virus_conf in virus_predictions:
+                    # Non VOC classified as unknown
                     variant_cov_label = 'Unknown'
                     variant_cov_conf = 0.0
-                    variant_iav_label = 'Unknown'  # Low Pathogenic Influenza VS High Pathogenic Influenza (HPAI)
+                    # Low Pathogenic Influenza (LPAI) classified as unknown
+                    variant_iav_label = 'Unknown'  
                     variant_iav_conf = 0.0
 
-                    # Classify variants if the virus label is SARS-CoV-2 or Influenza A
+                    # Classify variants if the virus label is SARS-CoV-2 & read is aligned to reference RBD
                     if virus_label == 'sars_cov_2' and sequence_contains_rbd(seq, rbd_reference):
                         variant_predictions = predict_sequences(cov2_model, cov2_tokenizer, [seq], cov2_label_mapping, 250, threshold, device)
                         _, variant_cov_label, variant_cov_conf = variant_predictions[0]
+                    # Classify variants if the virus label is Influenza A
                     elif virus_label == 'influenza_a':
                         variant_predictions = predict_sequences(iav_model, iav_tokenizer, [seq], iav_label_mapping, 250, threshold, device)
                         _, variant_iav_label, variant_iav_conf = variant_predictions[0]
                     
-                    # Append the predictions to the output
+                    # Append each sequence’s details, including the sequence itself, the predicted label, and the confidence score for that specific sequence
                     batch_output.append([seq, virus_label, virus_conf, variant_cov_label, variant_cov_conf, variant_iav_label, variant_iav_conf])
                     final_predictions.append([seq, virus_label, virus_conf, variant_cov_label, variant_cov_conf, variant_iav_label, variant_iav_conf])
                 
@@ -278,7 +394,7 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size, rbd_fa
                 batch_sequences = []
                 pbar.update(batch_size)
 
-        # Process remaining sequences in the last batch
+        # Process remaining sequences in the last batch with batch size less than batch_size
         if batch_sequences:
             virus_predictions = predict_sequences(virus_model, virus_tokenizer, batch_sequences, virus_label_mapping, 250, threshold, device)
             batch_output = []
@@ -289,15 +405,16 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, threshold, batch_size, rbd_fa
                 variant_iav_label = 'Unknown'  # Low Pathogenic Influenza VS High Pathogenic Influenza (HPAI)
                 variant_iav_conf = 0.0
 
-                # Classify variants if the virus label is SARS-CoV-2 or Influenza A
+                # Classify variants if the virus label is SARS-CoV-2 & read is aligned to reference RBD
                 if virus_label == 'sars_cov_2' and sequence_contains_rbd(seq, rbd_reference):
                     variant_predictions = predict_sequences(cov2_model, cov2_tokenizer, [seq], cov2_label_mapping, 250, threshold, device)
                     _, variant_cov_label, variant_cov_conf = variant_predictions[0]
+                # Classify variants if the virus label is Influenza A
                 elif virus_label == 'influenza_a':
                     variant_predictions = predict_sequences(iav_model, iav_tokenizer, [seq], iav_label_mapping, 250, threshold, device)
                     _, variant_iav_label, variant_iav_conf = variant_predictions[0]
                 
-                # Append the predictions to the output
+                # Append each sequence’s details, including the sequence itself, the predicted label, and the confidence score for that specific sequence
                 batch_output.append([seq, virus_label, virus_conf, variant_cov_label, variant_cov_conf, variant_iav_label, variant_iav_conf])
                 final_predictions.append([seq, virus_label, virus_conf, variant_cov_label, variant_cov_conf, variant_iav_label, variant_iav_conf])
             
