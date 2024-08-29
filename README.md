@@ -59,8 +59,8 @@ This project involves training a sequence classification model to classify respe
         | Model | Train    | Evaluation | Test    |
         |-------|----------|------------|---------|
         | Virus | 777126   | 97141      | 97141   |
-        | IAV   |          |            |         |
-        | COV   |          |            |         |
+        | IAV   | 5200000  | 650036     | 650036  |
+        | COV   | 6100000  | 771100     | 771100  |
 
 
 #### Model Training Parameters
