@@ -96,6 +96,16 @@ Python script for sequence classification of reads in RNA-Seq fasta/fa, fastq/fq
 
 Script: mrna_predictor.py
 
+        python3 mrna_predictor.py --fastq_path /path/to/input.fasta \
+                          --model_dir /path/to/main_model_directory \
+                          --csv_dir /path/to/finetuning/csv/file \
+                          --prediction_output_dir /path/to/output/directory \
+                          --virus_threshold 0.95 \
+                          --variant_threshold 0.95 \ 
+                          --batch_size 5000 \
+                          --rbd_fasta_file /path/to/RBD_reference_genome.fasta
+
+
 ### Overview
 
 The project involves extracting sequences from input file, to firstly predict virus labels using Virus model. Subsequently, reads with virus_label values of influenza_a are subjected to IAV model to be classified as respective IAV subtype. Similarly, reads with virus_label of sars_cov_2 are subjected to COV model to be classified as respective SARS-CoV-2 variant. 
