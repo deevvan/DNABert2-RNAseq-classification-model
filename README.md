@@ -2,6 +2,19 @@
 
 Python scripts to train DNABert2 models to classify RNASeq reads into respective respiratory virus pathogens IAV, IBV, rhinovirus, RSV and SARS-CoV-2
 
+## Requirements: 
+        
+- pandas
+- numpy
+- torch
+- transformers
+- scikit-learn
+- matplotlib
+- pycirclize
+- biopython
+- tqdm
+
+      pip install torch transformers pandas numpy matplotlib tqdm biopython pycirclize
 
 ## Step 1) Finetuning scripts:
 Python scripts to create Fine-tuning datasets to train each of the three models in DNABert2 virus classification, DNABert2 IAV subtype classification and DNABert2 hCOV19 VOC classifcation.
@@ -74,15 +87,6 @@ This project involves training a sequence classification model to classify respe
 
 - The model is evaluated on the test set to compute accuracy, precision, recall and F1-score.
 - The best model is saved, and evaluation results are printed.
-
-#### Requirements
-
-- pandas
-- numpy
-- torch
-- transformers
-- scikit-learn
-- matplotlib
 
 
 
