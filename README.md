@@ -193,3 +193,20 @@ Output prediction csv:
 Output prediction circos plot:
 
 <img width="803" alt="image" src="https://github.com/user-attachments/assets/b6f9d038-9768-4ba8-a4be-623abec28ca3">
+
+
+
+##### NOTE: Finetuning csv files for respective models compressed & saved into finetuning_data_dir using p7zip:
+        
+        # Debian/Ubuntu 
+        sudo apt-get install p7zip-full  
+        
+        # MacOS 
+        brew install p7zip               
+
+        # To zip
+        7z a -t7z -mx=9 output.7z input.zip
+
+        # Unzip
+        7z x output.7z
+
