@@ -167,3 +167,15 @@ The main function of the script, `mrna_predictor`, orchestrates the entire workf
 5. **Output Compilation**: Combines prediction results from multiple processes into a single CSV file.
 6. **Result Analysis**: Analyzes the combined predictions and generates visualizations.
 
+
+### Output Files of Model Application Script:
+
+Output prediction csv:
+
+<img width="1094" alt="image" src="https://github.com/user-attachments/assets/7f8951d2-c8d9-4203-a5ef-85820fca76e1">
+
+
+
+Output prediction circos plot:
+
+<img width="803" alt="image" src="https://github.com/user-attachments/assets/b6f9d038-9768-4ba8-a4be-623abec28ca3">
