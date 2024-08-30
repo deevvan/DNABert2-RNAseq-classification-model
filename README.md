@@ -2,6 +2,9 @@
 
 Python scripts to train DNABert2 models to classify RNASeq reads into respective respiratory virus pathogens IAV, IBV, rhinovirus, RSV and SARS-CoV-2
 
+## Link to Model directory:
+(https://drive.google.com/drive/folders/1gZChDgC4dUaqoS9AUK_pxQDtzvHv3Ffr?usp=drive_link)
+
 ## Requirements: 
         
 - pandas
