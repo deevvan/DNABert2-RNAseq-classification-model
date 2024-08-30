@@ -108,7 +108,7 @@ Script: mrna_predictor.py
 
 ### Overview
 
-The project involves extracting sequences from input file, to firstly predict virus labels using Virus model. Subsequently, reads with virus_label values of influenza_a are subjected to IAV model to be classified as respective IAV subtype. Similarly, reads with virus_label of sars_cov_2 are subjected to COV model to be classified as respective SARS-CoV-2 variant. 
+The application script involves extracting sequences from input file, to firstly predict virus labels using Virus model. Subsequently, reads with virus_label values of influenza_a are subjected to IAV model to be classified as respective IAV subtype. Similarly, reads with virus_label of sars_cov_2 are subjected to COV model to be classified as respective SARS-CoV-2 variant. 
 
 
 ### Script Parameters
