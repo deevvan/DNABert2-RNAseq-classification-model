@@ -68,7 +68,8 @@ This project involves training a sequence classification model to classify respe
 
 #### Data Preparation
 
-- The data is read from a CSV file containing virus genome sequences and their labels from Step 1a/1b/1c.
+- The data is read from a CSV file containing balanced number of virus genome sequences across all virus labels, subtype labels & VOC labels from Step 1a/1b/1c.
+- NOTE: Number of viral genome sequences are balanced but fragmentation of respective genomes result in unbalanced number of fragments as shown below as a result of difference in genome sizes.
   
 - The data is split into training, validation, and test sets with an 80-10-10 split. Data sizes in each split shown below:
   
