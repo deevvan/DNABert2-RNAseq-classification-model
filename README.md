@@ -91,6 +91,21 @@ This project involves training a sequence classification model to classify respe
 - The model is evaluated on the test set to compute accuracy, precision, recall and F1-score.
 - The best model is saved, and evaluation results are printed.
 
+#### Model Performances:
+
+1. Virus Model Metrics:
+![virus_model_metrics_plot](https://github.com/user-attachments/assets/0a34a3ec-513d-4bb1-a804-bc52b571dfe1)
+![virus_model_confusion_matrix](https://github.com/user-attachments/assets/ff6cba94-c731-4ac5-ad14-718f748032a3)
+
+
+2. IAV Model Metrics:
+![iav_model_metrics_plot](https://github.com/user-attachments/assets/22d5d1d4-32a7-4ea4-8a26-e7ef8c083018)
+![iav_model_confusion_matrix](https://github.com/user-attachments/assets/ce3685b0-46f4-4563-b34c-da0150617a10)
+
+
+1. COV Model Metrics:
+![cov_model_wo_nonVOC_metrics_plot](https://github.com/user-attachments/assets/13fc820e-e21e-4fde-a106-4e144b17e6a0)
+![cov_model_wo_nonVOC_confusion_matrix](https://github.com/user-attachments/assets/f8ecdc80-9ce0-493b-8f9d-3b1c98de69bb)
 
 
 ## Step 3) Model Application Script 
