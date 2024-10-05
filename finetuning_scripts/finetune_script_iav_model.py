@@ -132,7 +132,7 @@ class LogCallback(TrainerCallback):
 # Set the main directory path
 main_dir = Path("/path/to/directory/to/save/model/directory/")
 
-# Path where data used to finetune cov model is saved
+# Path where data used to finetune iav model is saved
 data_path = main_dir / "finetuning_data_iav_model.csv"
 
 df = pd.read_csv(data_path, dtype={"label_name": str, "sequence": str})
