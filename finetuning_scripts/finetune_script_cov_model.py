@@ -159,7 +159,8 @@ NUM_CLASSES = len(np.unique(labels_train))
 tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M")
 model = BertForSequenceClassification.from_pretrained("zhihan1996/DNABERT-2-117M", num_labels=NUM_CLASSES)
 
-SEQ_MAX_LEN = 633  # Max length of BERT
+# Max length is modified to represent the max length of RBD segments used to train the model
+SEQ_MAX_LEN = 633  
 
 train_encodings = tokenizer.batch_encode_plus(
     train_sequences,
