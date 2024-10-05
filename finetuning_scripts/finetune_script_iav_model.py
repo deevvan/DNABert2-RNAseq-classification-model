@@ -130,10 +130,10 @@ class LogCallback(TrainerCallback):
 ############################################
 
 # Set the main directory path
-main_dir = Path("/mmfs1/projects/changhui.yan/DeewanB/DNABert2_rnaseq")
+main_dir = Path("/path/to/directory/to/save/model/directory/")
 
-#data_path = main_dir / "genome_files/unfiltered_multiple_genomes/HA_NA_IAV_strains_250bp_50overlap_complementary_3k_epi.csv"
-data_path = main_dir / "genome_files/finetune_ART_sims/iav_finetune/ART_simulated_iav_finetune_1Xcoverage_complementary.csv"
+# Path where data used to finetune cov model is saved
+data_path = main_dir / "finetuning_data_iav_model.csv"
 
 df = pd.read_csv(data_path, dtype={"label_name": str, "sequence": str})
 
@@ -155,12 +155,12 @@ train_sequences, labels_train = df_train["sequence"].tolist(), df_train["label_n
 
 NUM_CLASSES = len(np.unique(labels_train))
 
-# Load the model and tokenizer
+# Load the DNABERT-2 model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M")
 model = BertForSequenceClassification.from_pretrained("zhihan1996/DNABERT-2-117M", num_labels=NUM_CLASSES)
-#model = BertForSequenceClassification.from_pretrained("/mmfs1/projects/changhui.yan/DeewanB/DNABert2_rnaseq/2_DNABert2_WGS_IAV_strains_250bp_50overlap_complementary_3k_epi/model", num_labels=len(label_names))
 
-SEQ_MAX_LEN = 250  # Max length of BERT
+# Max length is modified to represent the max length of ART simulated segments used to train the model
+SEQ_MAX_LEN = 250  
 
 train_encodings = tokenizer.batch_encode_plus(
     train_sequences,
@@ -212,13 +212,15 @@ df.to_csv(data_path, index=False)
 ### Training and evaluating the model ###
 ############################################
 
-#results_dir = main_dir / "2_DNABert2_HA_NA_IAV_250bp_50overlap_complementary_3k_epi"
-results_dir = main_dir / "2_DNABert2_WGS_IAV_multilength_1Xcoverage_ARTsimulated_complementary"
+# Saving model directory in main_dir path
+results_dir = main_dir / "DNABERT2_iav_model"
 
 results_dir.mkdir(parents=True, exist_ok=True)
-EPOCHS = 8
-BATCH_SIZE = 32  # Reduced batch size for memory management
-LEARNING_RATE = 5.0e-05
+
+# Defining training parameters
+EPOCHS = 8 # Define number of epochs 
+BATCH_SIZE = 32  # Adjust batch size for memory optimization
+LEARNING_RATE = 5.0e-05 # Define learning rate
 
 # Data Collator
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -250,7 +252,7 @@ trainer = Trainer(
     callbacks=[LogCallback(results_dir / "checkpoints"), AccuracyThresholdCallback(threshold=0.9995)]  # Combined callbacks
 )
 
-# Find the latest checkpoint if exists
+# Find the latest checkpoint if exists to resume training from last checkpoint
 last_checkpoint = None
 if (results_dir / "checkpoints").exists():
     checkpoints = list(sorted((results_dir / "checkpoints").glob("checkpoint-*"), key=lambda x: int(x.name.split('-')[-1])))
