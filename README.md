@@ -26,9 +26,9 @@ Python scripts to create Fine-tuning datasets to train each of the three models 
 
   Script: finetune_WGS_by_virus.ipynb
   
-  Whole genome sequences (WGS) for Influenza A (IAV), Influenza B (IBV), Human Rhinovirus, Human Respiratory Syncytial virus (RSV) and SARS-CoV-2 from GISAID (https://gisaid.org/) & NCBI   (https://www.ncbi.nlm.nih.gov/labs/virus) 
+  Whole genome sequences (WGS) for Influenza A (IAV), Human Rhinovirus, Human Respiratory Syncytial virus (RSV) and SARS-CoV-2 from GISAID (https://gisaid.org/) & NCBI   (https://www.ncbi.nlm.nih.gov/labs/virus) 
   
-  Transformed into 250 bps long fragments with 50 bps overlapping sliding windows to mimic RNA-Seq reads and assigned labels of respective viruses the reads come from. 
+  Transformed into simulated sequence reads of lengths 50, 75, 100, 150 and 250 bps long fragments with 1X coverage using NCBI simulation tool ART (https://www.niehs.nih.gov/research/resources/software/biostatistics/art)  to mimic RNA-Seq reads and assigned labels of respective viruses the reads come from. 
   
   Number of sequences per label balanced to contain a maximum of the number of sequences corresponding to the the virus label with the least sequences. 
   
@@ -38,7 +38,7 @@ Python scripts to create Fine-tuning datasets to train each of the three models 
 
   Script: finetune_WGS_by_IAV_strains.ipynb
   
-  An option of WGS or HA & NA segment sequences for major highly pathogenic IAV subtypes collected from GISAID EpiFlu and subjected to the same transformation as with step 1a.
+  An option of WGS sequences for major highly pathogenic IAV subtypes collected from GISAID EpiFlu and subjected to the same transformation as with step 1a.
             
 ### c) DNABert2 hCOV19 VOC classifcation:
 
@@ -54,11 +54,11 @@ Python scripts to create Fine-tuning datasets to train each of the three models 
 
 ## Step 2) Train Virus, IAV & COV Models 
 
-Script 1: DNAbert2_finetune_script_virus.py
+Script 1: finetune_script_virus_model.py
 
-Script 2: DNAbert2_finetune_script_IAV.py
+Script 2: finetune_script_iav_model.py
 
-Script 3: DNAbert2_finetune_script_sarscov2.py
+Script 3: finetune_script_cov_model.py
 
 Python scripts for training and evaluating a virus sequence classification model, Influenza A subtype classification model and SARS-CoV-2 Variant classification model respectively using DNABERT.
 
