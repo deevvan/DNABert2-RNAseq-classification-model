@@ -130,9 +130,10 @@ class LogCallback(TrainerCallback):
 ############################################
 
 # Set the main directory path
-main_dir = Path("/mmfs1/projects/changhui.yan/DeewanB/DNABert2_rnaseq")
+main_dir = Path("/path/to/directory/to/save/model/directory/")
 
-data_path = main_dir / "genome_files/unfiltered_multiple_genomes/RBD_whole_nucleotides_15mil_wo_nonvoc_100k_epi.csv"
+# Path where data used to finetune cov model is saved
+data_path = main_dir / "finetuning_data_cov_model.csv"
 
 df = pd.read_csv(data_path, dtype={"label_name": str, "sequence": str})
 
@@ -154,7 +155,7 @@ train_sequences, labels_train = df_train["sequence"].tolist(), df_train["label_n
 
 NUM_CLASSES = len(np.unique(labels_train))
 
-# Load the model and tokenizer
+# Load the DNABERT-2 model and tokenizer
 tokenizer = AutoTokenizer.from_pretrained("zhihan1996/DNABERT-2-117M")
 model = BertForSequenceClassification.from_pretrained("zhihan1996/DNABERT-2-117M", num_labels=NUM_CLASSES)
 
@@ -209,12 +210,15 @@ df.to_csv(data_path, index=False)
 ### Training and evaluating the model ###
 ############################################
 
-results_dir = main_dir / "3_DNABert2_whole_RBD_15mil_wo_nonvoc_100k_epi"
+# Saving model directory in main_dir path
+results_dir = main_dir / "DNABERT2_cov_model"
 
 results_dir.mkdir(parents=True, exist_ok=True)
-EPOCHS = 8
-BATCH_SIZE = 32  # Reduced batch size for memory management
-LEARNING_RATE = 5.0e-05
+
+# Defining training parameters
+EPOCHS = 8 # Define number of epochs 
+BATCH_SIZE = 32  # Adjust batch size for memory optimization
+LEARNING_RATE = 5.0e-05 # Define learning rate
 
 # Data Collator
 data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
@@ -243,10 +247,10 @@ trainer = Trainer(
     compute_metrics=compute_metrics,  # Compute metrics function is used for evaluation at the end of each epoch
     tokenizer=tokenizer,
     data_collator=data_collator,
-    callbacks=[LogCallback(results_dir / "checkpoints"), AccuracyThresholdCallback(threshold=0.9995)]  # Combined callbacks
+    callbacks=[LogCallback(results_dir / "checkpoints"), AccuracyThresholdCallback(threshold=0.9995)]  # Stoping model if accuracy for any epoch reaches 99.95%
 )
 
-# Find the latest checkpoint if exists
+# Find the latest checkpoint if exists to resume training from last checkpoint
 last_checkpoint = None
 if (results_dir / "checkpoints").exists():
     checkpoints = list(sorted((results_dir / "checkpoints").glob("checkpoint-*"), key=lambda x: int(x.name.split('-')[-1])))
@@ -321,7 +325,7 @@ plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
 plt.title('ROC Curve for COV Model wt multiple readlengths')
 plt.legend(loc="lower right")
-plt.savefig(results_dir / 'cov_model_wo_nonVOC_roc_auc.png')
+plt.savefig(results_dir / 'cov_model_roc_auc.png')
 plt.show()
 
 # Display confusion matrix with label names
@@ -333,7 +337,7 @@ plt.title('Confusion Matrix for COV Model wt multiple readlengths')
 plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels
 plt.yticks(rotation=45, ha='right')  # Rotate y-axis labels
 plt.tight_layout()  # Adjust layout to prevent clipping of labels
-plt.savefig(results_dir / 'cov_model_wo_nonVOC_confusion_matrix.png')
+plt.savefig(results_dir / 'cov_model_confusion_matrix.png')
 plt.show()
 
 # Generate plots for training and testing metrics
@@ -381,5 +385,5 @@ plt.title('Eval Metrics vs Epochs')
 plt.legend()
 
 plt.tight_layout()
-plt.savefig(results_dir / 'cov_model_wo_nonVOC_training_metrics.png')
+plt.savefig(results_dir / 'cov_model_training_metrics.png')
 plt.show()
