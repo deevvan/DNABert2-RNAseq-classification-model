@@ -151,28 +151,32 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
         logging.info(f"Predictions will be saved to {output_csv_file}")
         
         # Load models and tokenizers (keep them in memory)
-        virus_model_path = os.path.join(model_dir, "DNABERT2_virus_model/model")
+        #virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_250bp_50overlap_1300epi_4lables_complementary/model")
+        virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_multilength_1Xcoverage_ARTsimulated_4lables_complementary/model")
         virus_model = BertForSequenceClassification.from_pretrained(virus_model_path)
         virus_tokenizer = AutoTokenizer.from_pretrained(virus_model_path)
 
-        cov2_model_path = os.path.join(model_dir, "DNABERT2_cov_model/model")
+        cov2_model_path = os.path.join(model_dir, "3_DNABert2_whole_RBD_15mil_wo_nonvoc_100k_epi/model")
         cov2_model = BertForSequenceClassification.from_pretrained(cov2_model_path)
         cov2_tokenizer = AutoTokenizer.from_pretrained(cov2_model_path)
 
-        iav_model_path = os.path.join(model_dir, "DNABERT2_iav_model/model")
+        #iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_strains_250bp_50overlap_complementary_2498_epi/model")
+        iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_multilength_1Xcoverage_ARTsimulated_complementary/model")
         iav_model = BertForSequenceClassification.from_pretrained(iav_model_path)
         iav_tokenizer = AutoTokenizer.from_pretrained(iav_model_path)
 
         # Load label mappings (consistent with finetuning script)
-        virus_df = pd.read_csv(os.path.join(csv_dir, "finetuning_data_virus_model.csv"), dtype={"label_name": str})
+        #virus_df = pd.read_csv(os.path.join(csv_dir, "WGS_by_virus_4labels_250bp_50overlap_complementary_1300epi.csv"), dtype={"label_name": str})
+        virus_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_virus_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
         virus_df['label_number'], virus_label_names = pd.factorize(virus_df['label_name'])
         virus_label_mapping = dict(zip(virus_df['label_number'], virus_df['label_name']))
 
-        cov2_df = pd.read_csv(os.path.join(csv_dir, "finetuning_data_cov_model.csv"), dtype={"label_name": str})
+        cov2_df = pd.read_csv(os.path.join(csv_dir, "RBD_whole_nucleotides_15mil_wo_nonvoc_100k_epi.csv"), dtype={"label_name": str})
         cov2_df['label_number'], cov2_label_names = pd.factorize(cov2_df['label_name'])
         cov2_label_mapping = dict(zip(cov2_df['label_number'], cov2_df['label_name']))
 
-        iav_df = pd.read_csv(os.path.join(csv_dir, "finetuning_data_iav_model.csv"), dtype={"label_name": str})
+        #iav_df = pd.read_csv(os.path.join(csv_dir, "WGS_IAV_strains_250bp_50overlap_complementary_2498_epi.csv"), dtype={"label_name": str})
+        iav_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_iav_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
         iav_df['label_number'], iav_label_names = pd.factorize(iav_df['label_name'])
         iav_label_mapping = dict(zip(iav_df['label_number'], iav_df['label_name']))
 
@@ -213,28 +217,38 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
 
                 for idx, seq in enumerate(batch_sequences):
                     header, sequence, quality = seq
+                    virus_conf = confidence_scores[idx].item()
                     virus_label = virus_label_mapping[predicted_labels[idx].item()]
-                    variant_label, variant_conf = '', 0.0
+
+                    # Apply threshold for virus prediction
+                    if virus_conf < virus_threshold:
+                        virus_label = "unspecified"
+
+                    variant_label, variant_conf = 'unspecified', 0.0
 
                     if virus_label == 'sars_cov_2':
                         # Collect SARS-CoV-2 sequences for further processing
-                        temp_sars_cov_2.append([header, sequence, quality, confidence_scores[idx].item()])
+                        temp_sars_cov_2.append([header, sequence, quality, virus_conf])
                     else:
                         # Process non-SARS-CoV-2 sequences directly
                         if virus_label == 'influenza_a':
                             variant_inputs = process_sequences([seq], iav_tokenizer, 250)
                             variant_confidence, variant_pred = predict_sequences(iav_model, variant_inputs, device)
+                            variant_conf = variant_confidence.item()
                             variant_label = iav_label_mapping[variant_pred.item()]
-                            if variant_confidence.item() < variant_threshold:
-                                variant_label = 'unknown_LPAI'
+                            
+                            # Apply threshold for variant prediction
+                            if variant_conf < variant_threshold:
+                                variant_label = 'unspecified'
 
-                        final_output.append([sequence, virus_label, confidence_scores[idx].item(), variant_label, variant_conf])
+                        final_output.append([sequence, virus_label, virus_conf, variant_label, variant_conf])
 
                 pbar.update(batch_size)
 
         # Align SARS-CoV-2 sequences to RBD and generate consensus
         if temp_sars_cov_2:
             logging.info(f"Generating consensus for {len(temp_sars_cov_2)} SARS-CoV-2 sequences")
+            #rbd_aligned_sequences = [(header, sequence, quality) for header, sequence, quality in temp_sars_cov_2]
             rbd_aligned_sequences = [(header, sequence, quality) for header, sequence, quality, _ in temp_sars_cov_2]
             consensus_fasta = align_to_rbd_and_generate_consensus(rbd_aligned_sequences, bowtie2_index, ref_genome, prediction_output_dir, base_filename, fastq_format=True)
 
@@ -246,12 +260,15 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
             consensus_inputs = process_sequences([(None, consensus_seq)], cov2_tokenizer, 250)
             variant_confidence, variant_pred = predict_sequences(cov2_model, consensus_inputs, device)
             consensus_variant_label = cov2_label_mapping[variant_pred.item()]
-            if variant_confidence.item() < variant_threshold:
-                consensus_variant_label = 'unknown_variant'
+            consensus_variant_conf = variant_confidence.item()
+
+            # Apply threshold for consensus variant
+            if consensus_variant_conf < variant_threshold:
+                consensus_variant_label = 'unspecified'
 
             # Append SARS-CoV-2 sequences with the final variant label
             for header, sequence, quality, virus_conf in temp_sars_cov_2:
-                final_output.append([sequence, 'sars_cov_2', virus_conf, consensus_variant_label, 1.0])
+                final_output.append([sequence, 'sars_cov_2', virus_conf, consensus_variant_label, consensus_variant_conf])
 
         # Write final output to CSV
         df = pd.DataFrame(final_output, columns=['Sequence', 'Virus_Label', 'Virus_Confidence', 'Variant_Label', 'Variant_Confidence'])
@@ -271,7 +288,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="mRNA Predictor Script with Multi-GPU support")
     parser.add_argument("--fastq_path", type=str, required=True, help="Path to the input FASTQ file")
     parser.add_argument("--model_dir", type=str, required=True, help="Directory containing the models")
-    parser.add_argument("--csv_dir", type=str, required=True, help="Directory containing the finetuning data CSV files for label mapping")
+    parser.add_argument("--csv_dir", type=str, required=True, help="Directory containing the CSV files for label mapping")
     parser.add_argument("--prediction_output_dir", type=str, required=True, help="Directory to save prediction outputs")
     parser.add_argument("--virus_threshold", type=float, default=0.95, help="Virus prediction threshold")
     parser.add_argument("--variant_threshold", type=float, default=0.95, help="Variant prediction threshold")
