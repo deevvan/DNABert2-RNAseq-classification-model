@@ -151,8 +151,8 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
         logging.info(f"Predictions will be saved to {output_csv_file}")
         
         # Load models and tokenizers (keep them in memory)
-        #virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_250bp_50overlap_1300epi_4lables_complementary/model")
-        virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_multilength_1Xcoverage_ARTsimulated_4lables_complementary/model")
+        virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_multilength_3Xcoverage_ARTsimulated_4lables_pairedend/model")
+        #virus_model_path = os.path.join(model_dir, "1_DNABer2_virus_multilength_1Xcoverage_ARTsimulated_4lables_complementary/model")
         virus_model = BertForSequenceClassification.from_pretrained(virus_model_path)
         virus_tokenizer = AutoTokenizer.from_pretrained(virus_model_path)
 
@@ -160,14 +160,14 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
         cov2_model = BertForSequenceClassification.from_pretrained(cov2_model_path)
         cov2_tokenizer = AutoTokenizer.from_pretrained(cov2_model_path)
 
-        #iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_strains_250bp_50overlap_complementary_2498_epi/model")
-        iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_multilength_1Xcoverage_ARTsimulated_complementary/model")
+        iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_multilength_3Xcoverage_ARTsimulated_pairedend/model")
+        #iav_model_path = os.path.join(model_dir, "2_DNABert2_WGS_IAV_multilength_1Xcoverage_ARTsimulated_complementary/model")
         iav_model = BertForSequenceClassification.from_pretrained(iav_model_path)
         iav_tokenizer = AutoTokenizer.from_pretrained(iav_model_path)
 
         # Load label mappings (consistent with finetuning script)
-        #virus_df = pd.read_csv(os.path.join(csv_dir, "WGS_by_virus_4labels_250bp_50overlap_complementary_1300epi.csv"), dtype={"label_name": str})
-        virus_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_virus_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
+        virus_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_virus_finetune_3Xcoverage_pairedend.csv"), dtype={"label_name": str})
+        #virus_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_virus_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
         virus_df['label_number'], virus_label_names = pd.factorize(virus_df['label_name'])
         virus_label_mapping = dict(zip(virus_df['label_number'], virus_df['label_name']))
 
@@ -175,8 +175,8 @@ def mrna_predictor(fastq_path, model_dir, csv_dir, prediction_output_dir, virus_
         cov2_df['label_number'], cov2_label_names = pd.factorize(cov2_df['label_name'])
         cov2_label_mapping = dict(zip(cov2_df['label_number'], cov2_df['label_name']))
 
-        #iav_df = pd.read_csv(os.path.join(csv_dir, "WGS_IAV_strains_250bp_50overlap_complementary_2498_epi.csv"), dtype={"label_name": str})
-        iav_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_iav_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
+        iav_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_iav_finetune_3Xcoverage_pairedend.csv"), dtype={"label_name": str})
+        #iav_df = pd.read_csv(os.path.join(csv_dir, "ART_simulated_iav_finetune_1Xcoverage_complementary.csv"), dtype={"label_name": str})
         iav_df['label_number'], iav_label_names = pd.factorize(iav_df['label_name'])
         iav_label_mapping = dict(zip(iav_df['label_number'], iav_df['label_name']))
 
