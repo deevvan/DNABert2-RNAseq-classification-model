@@ -95,18 +95,18 @@ This project involves training a sequence classification model to classify respe
 #### Model Performances:
 
 1. Virus Model Metrics:
-![virus_model_metrics_plot](https://github.com/user-attachments/assets/0a34a3ec-513d-4bb1-a804-bc52b571dfe1)
-![virus_model_confusion_matrix](https://github.com/user-attachments/assets/ff6cba94-c731-4ac5-ad14-718f748032a3)
+![virus_confmat](https://github.com/user-attachments/assets/64f6480c-50ce-46ce-a1d9-3e49820f5fbc)
+![virus_metrics](https://github.com/user-attachments/assets/1bab0998-ce7f-4cfc-956e-12ed0dac0c99)
 
 
-2. IAV Model Metrics:
-![iav_model_metrics_plot](https://github.com/user-attachments/assets/22d5d1d4-32a7-4ea4-8a26-e7ef8c083018)
-![iav_model_confusion_matrix](https://github.com/user-attachments/assets/ce3685b0-46f4-4563-b34c-da0150617a10)
+3. IAV Model Metrics:
+![iav_confmat](https://github.com/user-attachments/assets/716b96f8-c1d6-4fff-95b8-6476b6a10d0e)
+![iav_metrics](https://github.com/user-attachments/assets/68ca0bce-7788-4834-9afb-ea549dd1293b)
 
 
-1. COV Model Metrics:
-![cov_model_wo_nonVOC_metrics_plot](https://github.com/user-attachments/assets/13fc820e-e21e-4fde-a106-4e144b17e6a0)
-![cov_model_wo_nonVOC_confusion_matrix](https://github.com/user-attachments/assets/f8ecdc80-9ce0-493b-8f9d-3b1c98de69bb)
+3. COV Model Metrics:
+![cov_confmat](https://github.com/user-attachments/assets/06257651-1d72-461a-8ff0-8b11eac6d3e0)
+![cov_metrics](https://github.com/user-attachments/assets/852a7969-e87b-47ec-a73f-a33532033765)
 
 
 ## Step 3) Model Application Script 
