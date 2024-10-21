@@ -48,7 +48,7 @@ Python scripts to create Fine-tuning datasets to train each of the three models 
 
   Script: finetune_RBD_by_hCOV19_variants.ipynb
   
-  Receptor binding domain (RBD) sequences extracted from above extract_RBD_from_MSA.ipynb script subjected to subjected to the same transformation as with step 1a. An option to include/exclude nonVOC as one of the training labels can be made when generating the training dataset.
+  Receptor binding domain (RBD) sequences extracted from above extract_RBD_from_MSA.ipynb script and 100K whole RBD segments for each major VOC are written out to trainind dataset.
 
 
 
