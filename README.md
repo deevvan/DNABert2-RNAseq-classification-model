@@ -119,37 +119,54 @@ This project involves training a sequence classification model to classify respe
 
 ## Step 3) Model Application Script 
 
-Python script for sequence classification of reads in RNA-Seq fasta/fa, fastq/fq, fasta.gz/fa.gz, fastq.gz/fq.gz file. 
+Python script (mrna_predictor.py) for classifying mRNA sequences and predicting viral strains using pre-trained models. It supports sequence classification for RNA-Seq files in FASTQ/FASTA formats (uncompressed and gzipped), and predicts virus labels and respective variants. The script handles multi-GPU support for large datasets and provides functionality for consensus generation using Bowtie2 and ivar for SARS-CoV-2 sequences.
+
 
 Script: mrna_predictor.py
 
-        python3 mrna_predictor.py --fastq_path /path/to/input.fasta \
-                          --model_dir /path/to/main_model_directory \
-                          --csv_dir /path/to/finetuning/csv/file \
-                          --prediction_output_dir /path/to/output/directory \
-                          --virus_threshold 0.95 \
-                          --variant_threshold 0.95 \ 
-                          --batch_size 5000 \
-                          --rbd_fasta_file /path/to/RBD_reference_genome.fasta
+        python mrna_predictor.py --fastq_path /path/to/input.fq \
+                         --model_dir /path/to/model_dir \
+                         --csv_dir /path/to/csv_dir \
+                         --prediction_output_dir /path/to/output \
+                         --virus_threshold 0.95 \
+                         --variant_threshold 0.95 \
+                         --batch_size 2048 \
+                         --rbd_fasta_file /path/to/rbd_reference.fasta \
+                         --bowtie2_index /path/to/bowtie2_index \
+                         --ref_genome /path/to/ref_genome
 
 
 ### Overview
 
-The application script involves extracting sequences from input file, to firstly predict virus labels using Virus model. Subsequently, reads with virus_label values of influenza_a are subjected to IAV model to be classified as respective IAV subtype. Similarly, reads with virus_label of sars_cov_2 are subjected to COV model to be classified as respective SARS-CoV-2 variant. 
+The script extracts sequences from the input file, predicts virus labels using a pre-trained virus model, and classifies relevant variants (such as SARS-CoV-2 variants or Influenza A subtypes) using corresponding models. 
+#### NOTE: SARS-CoV-2 sequences are further processed to generate consensus using Bowtie2 and ivar and consensus sequences are used for SARS-CoV-2 variant classification.
 
 
 ### Script Parameters
 
-The script requires several command-line arguments to specify input files and parameters for model prediction:
+The script requires several command-line arguments to specify input files, directories, and parameters for model prediction:
 
-- **--fastq_path**: Path to the input FASTQ/FASTA file containing mRNA sequences.
-- **--model_dir**: Directory containing pre-trained model files.
-- **--csv_dir**: Directory containing label CSV files for models.
-- **--prediction_output_dir**: Directory where the prediction output CSV file will be saved.
-- **--virus_threshold**: Confidence threshold for virus model predictions.
-- **--variant_threshold**: Confidence threshold for variant model predictions.
-- **--batch_size**: Number of sequences to process in each batch.
-- **--rbd_fasta_file**: Path to the RBD reference FASTA file for alignment.
+**--fastq_path**: Path to the input FASTQ/FASTA file (supports .fastq, .fq, .fastq.gz, and .fq.gz).
+**--model_dir**: Directory containing pre-trained model files for virus classification and variant prediction.
+**--csv_dir**: Directory containing label mapping CSV files for the models.
+**--prediction_output_dir**: Directory where the prediction output CSV file will be saved.
+**--virus_threshold**: Confidence threshold for virus classification (default: 0.95).
+**--variant_threshold**: Confidence threshold for variant classification (default: 0.95).
+**--batch_size**: Number of sequences to process in each batch (default: 2048).
+**--rbd_fasta_file**: Path to the RBD reference FASTA file for SARS-CoV-2 alignment.
+**--bowtie2_index**: Path to the Bowtie2 index for SARS-CoV-2 alignment.
+**--ref_genome**: Path to the reference genome for generating consensus.
+
+
+### Workflow Overview
+
+1.	Input Validation: Validates the input FASTQ/FASTA file format.
+2.	Sequence Extraction: Extracts sequences from the input file, ensuring they meet length and nucleotide composition criteria.
+3.	Virus Prediction: Uses a pre-trained virus classification model to assign virus labels to each sequence.
+4.	Variant Prediction: For SARS-CoV-2 or Influenza A sequences, the script further classifies them into respective variants or subtypes.
+5.	SARS-CoV-2 Consensus Generation: Aligns SARS-CoV-2 sequences to the RBD region using Bowtie2 and generates consensus with ivar.
+6.	Output Compilation: Saves the prediction results (including virus and variant labels) to a CSV file in the specified output directory.
+
 
 ### Helper Functions:
 
@@ -161,55 +178,52 @@ This function checks if a DNA sequence contains only valid nucleotides (A, T, G,
 
 Extracts sequences from a FASTQ file, handling both uncompressed and gzipped files. It yields valid sequences based on the criteria defined in `is_valid_sequence`.
 
-#### c) extract_sequences_from_fasta
-
-Similar to `extract_sequences_from_fastq`, this function extracts sequences from a FASTA file, handling both uncompressed and gzipped files.
-
-#### d) preprocess_sequence
+#### c) preprocess_sequence
 
 Truncates a sequence to a specified maximum length, ensuring it does not exceed the model's input size requirement.
 
-#### e) predict_sequences
+#### d) predict_sequences
 
 Utilizes a pre-trained model to predict labels for a batch of DNA sequences. It outputs the predicted label and confidence score for each sequence based on a specified threshold.
 
-#### f) calculate_label_statistics
+#### e) load_rbd_reference
 
-Calculates statistics for predicted labels, such as count, average confidence, and Z-score, for either virus or variant classifications.
+Loads the RBD reference sequence for local alignment of sequences predicted to have sars_cov_2 virus label.
 
-#### g) initialize_output_csv
+#### g) sequence_contains_rbd
 
-Initializes a CSV file for storing prediction results, writing appropriate headers.
+Checks if a sequence aligns with the RBD reference using local alignment.
 
-#### h) append_prediction_to_csv
+#### h) align_to_rbd_and_generate_consensus
 
-Appends prediction results to the CSV file, adding new rows for each prediction.
-
-#### i) load_rbd_reference
-
-Loads the RBD reference sequence from a specified FASTA file, used for alignment checks.
-
-#### j) sequence_contains_rbd
-
-Uses a pairwise aligner to check if a given sequence aligns with the RBD reference sequence, indicating potential viral variants.
-
-#### k) analyze_predictions
-
-Analyzes prediction results from a CSV file, calculates statistics, and generates visualizations such as pie charts and Circos plots.
-
-### Main Functionality:
-
-The main function of the script, `mrna_predictor`, orchestrates the entire workflow of mRNA sequence classification and viral strain prediction:
-
-1. **Input Validation**: Validates the input FASTQ/FASTA file format.
-2. **Sequence Extraction**: Extracts sequences from the input file using the appropriate helper function.
-3. **GPU Allocation**: Distributes sequences across available GPUs for parallel processing.
-4. **Model Prediction**: Loads pre-trained models and predicts viral labels for each sequence chunk using helper functions.
-5. **Output Compilation**: Combines prediction results from multiple processes into a single CSV file.
-6. **Result Analysis**: Analyzes the combined predictions and generates visualizations.
+Aligns sequences to RBD using Bowtie2 and generates a consensus sequence with ivar.
 
 
-### Output Files of Model Application Script:
+## Step 4) CIRCOS plot Generator Script 
+
+Python script (mrna_predictor.py) for classifying mRNA sequences and predicting viral strains using pre-trained models. It supports sequence classification for RNA-Seq files in FASTQ/FASTA formats (uncompressed and gzipped), and predicts virus labels and respective variants. The script handles multi-GPU support for large datasets and provides functionality for consensus generation using Bowtie2 and ivar for SARS-CoV-2 sequences.
+
+
+Script: circos_generator.py
+
+        python mrna_predictor.py --csv path/to/*_prediction.csv --out_dir path/to/output_dir
+
+
+### Overview
+
+The script calculates virus copy number and count based statistics for each virus and variant label using input prediction csv file generated by mRNA_predictor.py and generates Circos plot. 
+
+
+### Script Parameters
+
+The script requires several command-line arguments to specify input files, directories, and parameters for model prediction:
+
+**--csv**: Path to the input *_prediction.csv file generated by mrna_predictor.py
+**--out_dir**: Output Directory to generate Circos plot for input prediction csv file
+
+
+
+### Output Files for Model Application Script & Circos Plot Generator Script:
 
 Output prediction csv:
 
@@ -223,17 +237,4 @@ Output prediction circos plot:
 
 
 
-##### NOTE: Finetuning csv files for respective models compressed & saved into finetuning_data_dir using p7zip:
-        
-        # Debian/Ubuntu 
-        sudo apt-get install p7zip-full  
-        
-        # MacOS 
-        brew install p7zip               
-
-        # To zip
-        7z a -t7z -mx=9 output.7z input.zip
-
-        # Unzip
-        7z x output.7z
 
