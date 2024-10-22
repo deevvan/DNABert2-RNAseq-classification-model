@@ -5,6 +5,11 @@ Python scripts to train DNABert2 models to classify RNASeq reads into respective
 ## Link to Model directory:
         https://drive.google.com/drive/folders/1gZChDgC4dUaqoS9AUK_pxQDtzvHv3Ffr?usp=drive_link
 
+## DAG that shows extraction pipeline unaligned reads onto fastq file/s to pass onto the DNABERT2 model and generate virus and variant labels for host unaligned reads:
+
+<img width="687" alt="Screenshot 2024-10-22 at 3 15 01 PM" src="https://github.com/user-attachments/assets/14398f49-ff22-40a8-883b-b9f7f0b1690a">
+
+
 ## Requirements: 
         
 - pandas
