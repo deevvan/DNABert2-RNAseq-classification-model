@@ -24,6 +24,9 @@ Python scripts to train DNABert2 models to classify RNASeq reads into respective
 
       pip install torch transformers pandas numpy matplotlib tqdm biopython pycirclize
 
+#### Conda environment required for nextflow pipeline execution:
+      conda env create --file nextflow_env.yml --name nextflow_env
+
 ## Step 1) Finetuning scripts:
 Python scripts to create Fine-tuning datasets to train each of the three models in DNABert2 virus classification, DNABert2 IAV subtype classification and DNABert2 hCOV19 VOC classifcation.
 
